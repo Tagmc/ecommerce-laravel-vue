@@ -1,0 +1,105 @@
+version: '3.8'
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: laravel_app
+    volumes:
+      - ./backend:/var/www
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      - DB_HOST=mysql
+      - DB_DATABASE=ecommerce
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - REDIS_HOST=redis
+    networks:
+      - app-network
+
+  mysql:
+    image: mysql:8
+    container_name: mysql_db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ecommerce
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: root
+    networks:
+      - app-network
+
+  queue:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: queue_worker
+    command: php artisan queue:work --tries=3 --timeout=60
+    volumes:
+      - ./backend:/var/www
+    depends_on:
+      - app
+      - redis
+    networks:
+      - app-network
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: laravel_scheduler
+    command: sh -c "while [ true ]; do php artisan schedule:run --verbose --no-interaction & sleep 60; done"
+    volumes:
+      - ./backend:/var/www
+    depends_on:
+      - app
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: vue3_frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5173:5173"
+    command: bash -c "npm install && npm run dev"
+    networks:
+      - app-network
