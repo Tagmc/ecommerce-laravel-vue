@@ -36,13 +36,22 @@ Route::prefix('auth')->group(function () {
 
 Route::prefix('products')->group(function () {
     Route::middleware(['auth:api', 'role:admin'])->group(function () {
-        Route::post('/', [ProductController::class, 'store']);
-        Route::put('/{id}', [ProductController::class, 'update']);
-        Route::delete('/{id}', [ProductController::class, 'destroy']);
+        Route::post('/', [ProductController::class, 'store'])->name('products.store');
+        Route::put('/{id}', [ProductController::class, 'update'])->name('products.update')->where('id', '[0-9]+');
+        Route::delete('/{id}', [ProductController::class, 'destroy'])->name('products.destroy')->where('id', '[0-9]+');
     });
 
-    Route::get('/', [ProductController::class, 'index']);
-    Route::get('/{id}', [ProductController::class, 'show']);
+    // Các route công khai hoặc yêu cầu xác thực khác (nếu có)
+    // GET /api/products
+    // GET /api/products?category_ids[]=1&category_ids[]=5 (Lọc theo nhiều ID danh mục)
+    // GET /api/products?category_id=2 (Lọc theo một ID danh mục)
+    // GET /api/products?category_slug=ao-khoac (Lọc theo slug danh mục)
+    // GET /api/products?search=tên sản phẩm
+    // GET /api/products?sort_by=price&sort_direction=asc
+    // GET /api/products?per_page=20 (Số sản phẩm mỗi trang)
+    // GET /api/products?all=true (Lấy tất cả không phân trang)
+    Route::get('/', [ProductController::class, 'index'])->name('products.index');
+    Route::get('/{id}', [ProductController::class, 'show'])->name('products.show')->where('id', '[0-9]+');
 });
 
 

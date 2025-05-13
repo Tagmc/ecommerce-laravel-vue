@@ -3,66 +3,124 @@
 namespace App\Services;
 
 use App\Repositories\ProductRepository;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log; // Để log lỗi nếu cần
+use App\Models\Product; // For type hinting
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection as EloquentCollection;
+
 
 class ProductService
 {
-    protected $productRepository;
+    protected ProductRepository $productRepository;
 
     public function __construct(ProductRepository $productRepository)
     {
         $this->productRepository = $productRepository;
     }
 
-    public function createProduct($data)
+    /**
+     * Xử lý upload và lưu đường dẫn hình ảnh.
+     *
+     * @param array $files Mảng các file ảnh từ request.
+     * @return array Mảng các đường dẫn đã lưu.
+     */
+    private function handleImageUploads(array $files): array
     {
         $imagePaths = [];
-        if (isset($data['images'])) {
-            foreach ($data['images'] as $image) {
+        foreach ($files as $image) {
+            if ($image->isValid()) {
                 $path = $image->store('products', 'public');
-                $imagePaths[] = 'storage/' . $path;
+                $imagePaths[] = Storage::url($path);
             }
         }
-        $data['images'] = $imagePaths;
-        $product = $this->productRepository->create($data);
-        if (isset($data['category_ids'])) {
-            $product->categories()->attach($data['category_ids']);
-        }
-
-        return $product;
+        return $imagePaths;
     }
 
-    public function updateProduct($id, $data)
+    public function createProduct(array $productData): Product
     {
-        if (isset($data['images'])) {
-            $imagePaths = [];
-            foreach ($data['images'] as $image) {
-                $path = $image->store('products', 'public');
-                $imagePaths[] = 'storage/' . $path;
+        if (isset($productData['images']) && is_array($productData['images'])) {
+            $productData['images'] = $this->handleImageUploads($productData['images']);
+        } else {
+            $productData['images'] = [];
+        }
+        $product = $this->productRepository->create($productData);
+
+        if (!empty($productData['category_ids']) && is_array($productData['category_ids'])) {
+            $product->categories()->attach($productData['category_ids']);
+        }
+        return $product->load('categories');
+    }
+
+    public function updateProduct(int $id, array $productData): ?Product
+    {
+        $product = $this->productRepository->findById($id);
+        if (!$product) {
+            return null;
+        }
+
+        if (isset($productData['images']) && is_array($productData['images'])) {
+            foreach (($product->images ?? []) as $oldImagePath) {
+                $oldStoragePath = str_replace(Storage::url(''), '', $oldImagePath);
+                if (Storage::disk('public')->exists($oldStoragePath)) {
+                    Storage::disk('public')->delete($oldStoragePath);
+                }
             }
-            $data['images'] = $imagePaths;
+            $productData['images'] = $this->handleImageUploads($productData['images']);
         }
 
-        $product = $this->productRepository->update($id, $data);
+        $updatedProduct = $this->productRepository->update($id, $productData);
 
-        if (isset($data['category_ids'])) {
-            $product->categories()->sync($data['category_ids']);
+        if ($updatedProduct && isset($productData['category_ids'])) {
+            $updatedProduct->categories()->sync($productData['category_ids']);
         }
 
-        return $product;
+        return $updatedProduct ? $updatedProduct->load('categories') : null;
     }
 
-    public function getAllProducts()
+    /**
+     * Lấy tất cả sản phẩm dựa trên request.
+     *
+     * @param Request $request
+     * @return LengthAwarePaginator|EloquentCollection
+     */
+    public function getAllProducts(Request $request)
     {
-        return $this->productRepository->getAll();
+        $filters = [
+            'category_ids' => $request->input('category_ids'), // Mảng ID: ?category_ids[]=1&category_ids[]=2
+            'category_id' => $request->input('category_id'),   // Một ID: ?category_id=1
+            'category_slug' => $request->input('category_slug'),// Một slug: ?category_slug=ten-danh-muc
+            'search' => $request->input('search'),
+            'sort_by' => $request->input('sort_by', 'created_at'),
+            'sort_direction' => $request->input('sort_direction', 'desc'),
+        ];
+
+        // Loại bỏ các filter rỗng để không ảnh hưởng query
+        $filters = array_filter($filters, function($value) {
+            return !is_null($value) && $value !== '';
+        });
+
+        $perPage = $request->input('per_page') ? (int)$request->input('per_page') : 15;
+        if ($request->has('all') && $request->boolean('all')) { // Thêm tham số ?all=true để lấy tất cả
+            $perPage = null;
+        }
+
+
+        return $this->productRepository->getAll($filters, $perPage);
     }
 
-    public function getProduct($id)
+    public function getProductById(int $id): ?Product
     {
-        return $this->productRepository->find($id);
+        return $this->productRepository->findById($id);
     }
 
-    public function deleteProduct($id)
+    public function deleteProduct(int $id): bool
     {
-        return $this->productRepository->delete($id);
+        $product = $this->productRepository->findById($id);
+        if ($product) {
+            return $this->productRepository->delete($id);
+        }
+        return false;
     }
 }

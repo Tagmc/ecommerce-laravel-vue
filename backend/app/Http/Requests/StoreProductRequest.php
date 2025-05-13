@@ -11,7 +11,7 @@ class StoreProductRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return true; // Hoặc true nếu bạn xử lý authorization ở middleware/policy
     }
 
     /**
@@ -21,14 +21,19 @@ class StoreProductRequest extends FormRequest
      */
     public function rules(): array
     {
+        // 'sometimes' cho phép trường đó không cần gửi lên khi update, nhưng nếu gửi thì phải hợp lệ
+        $imageRule = $this->isMethod('put') || $this->isMethod('patch') ? 'sometimes|array' : 'nullable|array';
+        $imageFileRule = $this->isMethod('put') || $this->isMethod('patch') ? 'sometimes|image' : 'nullable|image';
+
+
         return [
-            'name' => 'required|string|max:255',
+            'name' => ($this->isMethod('put') || $this->isMethod('patch') ? 'sometimes|required' : 'required').'|string|max:255',
             'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'price' => ($this->isMethod('put') || $this->isMethod('patch') ? 'sometimes|required' : 'required').'|numeric|min:0',
+            'stock' => ($this->isMethod('put') || $this->isMethod('patch') ? 'sometimes|required' : 'required').'|integer|min:0',
+            'images.*' => $imageFileRule.'|mimes:jpeg,png,jpg,gif,webp|max:2048', 
             'category_ids' => 'nullable|array',
-            'category_ids.*' => 'exists:categories,id',
+            'category_ids.*' => 'integer|exists:categories,id',
         ];
     }
 
@@ -42,14 +47,16 @@ class StoreProductRequest extends FormRequest
             'price.required' => 'Giá sản phẩm là bắt buộc.',
             'price.numeric' => 'Giá sản phẩm phải là một số.',
             'price.min' => 'Giá sản phẩm phải lớn hơn hoặc bằng 0.',
-            'images.*.image' => 'Hình ảnh không hợp lệ.',
-            'images.*.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg hoặc gif.',
-            'images.*.max' => 'Kích thước hình ảnh không được vượt quá 2MB.',
-            'category_ids.array' => 'Danh sách danh mục không hợp lệ.',
-            'category_ids.*.exists' => 'Danh mục không tồn tại.',
-            'stock.required' => 'Số lượng sản phẩm là bắt buộc.',
-            'stock.integer' => 'Số lượng sản phẩm phải là một số nguyên.',
-            'stock.min' => 'Số lượng sản phẩm phải lớn hơn hoặc bằng 0.',
+            'images.array' => 'Trường hình ảnh không hợp lệ.',
+            'images.*.image' => 'Một trong các file không phải là hình ảnh hợp lệ.',
+            'images.*.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, webp hoặc gif.',
+            'images.*.max' => 'Kích thước mỗi hình ảnh không được vượt quá 2MB.',
+            'category_ids.array' => 'Danh sách ID danh mục không hợp lệ.',
+            'category_ids.*.integer' => 'Mỗi ID danh mục phải là số nguyên.',
+            'category_ids.*.exists' => 'Một hoặc nhiều ID danh mục không tồn tại.',
+            'stock.required' => 'Số lượng tồn kho là bắt buộc.',
+            'stock.integer' => 'Số lượng tồn kho phải là một số nguyên.',
+            'stock.min' => 'Số lượng tồn kho phải lớn hơn hoặc bằng 0.',
         ];
     }
 }
