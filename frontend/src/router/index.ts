@@ -6,6 +6,7 @@ import store from "../store";
 import Home from "../pages/client/Home.vue";
 import CategoryManager from "../pages/admin/Category/CategoryManager.vue";
 import AdminLayout from "../pages/admin/AdminLayout.vue";
+import ProductManager from "../pages/admin/Product/ProductManager.vue";
 
 const routes = [
   {
@@ -22,6 +23,11 @@ const routes = [
         path: "categories",
         name: "AdminCategories",
         component: CategoryManager,
+      },
+      {
+        path: "products",
+        name: "AdminProducts",
+        component: ProductManager,
       },
       // {
       //   path: "products",

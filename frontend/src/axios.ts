@@ -35,7 +35,7 @@ workApi.interceptors.response.use(
     if (status === 401 && !originalRequest._retry && isAuthenticated && !isAuthPage) {
       originalRequest._retry = true;
       try {
-        const response = await workApi.post<RefreshTokenResponse>('/auth/refresh');
+        const response = await workApi.post<RefreshTokenResponse>('/auth/refresh', {}, {withCredentials: true});
         const newAccessToken = response.data.accessToken;
         localStorage.setItem('access_token', newAccessToken);
         store.commit('auth/setAccessToken', newAccessToken);
