@@ -88,25 +88,35 @@ class ProductService
     public function getAllProducts(Request $request)
     {
         $filters = [
-            'category_ids' => $request->input('category_ids'), // Mảng ID: ?category_ids[]=1&category_ids[]=2
-            'category_id' => $request->input('category_id'),   // Một ID: ?category_id=1
-            'category_slug' => $request->input('category_slug'),// Một slug: ?category_slug=ten-danh-muc
+            'category_ids' => $request->input('category_ids'),
+            'category_id' => $request->input('category_id'),
+            'category_slug' => $request->input('category_slug'),
+            'min_price' => $request->input('min_price'),
+            'max_price' => $request->input('max_price'),
             'search' => $request->input('search'),
             'sort_by' => $request->input('sort_by', 'created_at'),
             'sort_direction' => $request->input('sort_direction', 'desc'),
         ];
-
-        // Loại bỏ các filter rỗng để không ảnh hưởng query
-        $filters = array_filter($filters, function($value) {
+        $filters = array_filter($filters, function ($value) {
             return !is_null($value) && $value !== '';
         });
+        if (isset($filters['min_price']) && isset($filters['max_price'])) {
+            $minPrice = (float) $filters['min_price'];
+            $maxPrice = (float) $filters['max_price'];
 
+            if ($minPrice > $maxPrice) {
+                Log::warning('Min price > Max price in product filtering', [
+                    'min_price' => $minPrice,
+                    'max_price' => $maxPrice
+                ]);
+                $filters['min_price'] = $maxPrice;
+                $filters['max_price'] = $minPrice;
+            }
+        }
         $perPage = $request->input('per_page') ? (int)$request->input('per_page') : 15;
-        if ($request->has('all') && $request->boolean('all')) { // Thêm tham số ?all=true để lấy tất cả
+        if ($request->has('all') && $request->boolean('all')) {
             $perPage = null;
         }
-
-
         return $this->productRepository->getAll($filters, $perPage);
     }
 

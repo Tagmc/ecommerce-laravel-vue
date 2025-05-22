@@ -43,6 +43,22 @@ class User extends Authenticatable implements JWTSubject
     {
         return [];
     }
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+    public function carts()
+    {
+        return $this->hasMany(Cart::class);
+    }
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
+    public function isCustomer()
+    {
+        return $this->role === 'customer';
+    }
     /**
      * The attributes that should be cast.
      *

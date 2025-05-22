@@ -22,4 +22,10 @@ class Product extends Model
     public function categories() {
         return $this->belongsToMany(Category::class, 'category_product');
     }
+    public function carts() {
+        return $this->hasMany(Cart::class);
+    }
+    public function orderItems() {
+        return $this->hasMany(OrderItem::class);
+    }
 }

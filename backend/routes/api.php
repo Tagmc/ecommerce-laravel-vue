@@ -1,8 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Cart\CartController;
 use App\Http\Controllers\Api\Category\CategoryController;
+use App\Http\Controllers\Api\Order\OrderController;
 use App\Http\Controllers\Api\Product\ProductController;
+use App\Http\Controllers\Api\User\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -26,10 +29,8 @@ Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
     Route::post('refresh', [AuthController::class, 'refresh']);
-    Route::middleware('auth:api')->group(function () {
-        Route::get('me', [AuthController::class, 'getUser']);
-        Route::post('logout', [AuthController::class, 'logout']);
-    });
+    Route::get('me', [AuthController::class, 'getUser']);
+    Route::post('logout', [AuthController::class, 'logout']);
     Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('reset-password', [AuthController::class, 'resetPassword']);
 });
@@ -63,4 +64,30 @@ Route::prefix('categories')->group(function () {
     });
     Route::get('/', [CategoryController::class, 'index']);
     Route::get('{id}', [CategoryController::class, 'show']);
+});
+
+// Cart routes
+Route::middleware('auth:api')->prefix('cart')->group(function () {
+    Route::get('/', [CartController::class, 'index']);
+    Route::post('/add', [CartController::class, 'store']);
+    Route::put('/{productId}', [CartController::class, 'update']);
+    Route::delete('/{productId}', [CartController::class, 'destroy']);
+    Route::delete('/', [CartController::class, 'clear']);
+});
+
+// Order routes
+Route::middleware('auth:api')->prefix('orders')->group(function () {
+    Route::get('/', [OrderController::class, 'index']);
+    Route::post('/', [OrderController::class, 'store']);
+    Route::get('/{id}', [OrderController::class, 'show']);
+    Route::delete('/{id}', [OrderController::class, 'destroy']);
+    Route::put('/{id}/status', [OrderController::class, 'updateStatus'])->middleware('role:admin');
+});
+
+Route::middleware(['auth:api', 'role:admin'])->prefix('users')->group(function () {
+    Route::get('/', [UserController::class, 'index']);
+    Route::get('/{id}', [UserController::class, 'show']);
+    Route::post('/', [UserController::class, 'store']);
+    Route::put('/{id}', [UserController::class, 'update']);
+    Route::delete('/{id}', [UserController::class, 'destroy']);
 });

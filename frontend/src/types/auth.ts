@@ -46,6 +46,7 @@ export interface LogoutResponse {
 
 export interface RefreshTokenResponse {
   accessToken: string; 
+  message: string
 }
 
 export interface ErrorResponse {

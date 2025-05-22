@@ -1,3 +1,4 @@
+import workApi from "../../axios";
 import { loginApi, registerApi, getProfile, logout } from "../../apis/auth";
 import type {
   AuthState,
@@ -47,6 +48,7 @@ const auth = {
       state.isAuthenticated = false;
       state.isAdmin = false;
       state.loading = false;
+      localStorage.removeItem("access_token");
     },
   },
   actions: {
@@ -54,7 +56,6 @@ const auth = {
       commit("setLoading", true);
       try {
         const response = await loginApi(payload);
-        localStorage.setItem('access_token', response.access_token);
         commit("setUser", response.user);
         commit("setAccessToken", response.access_token);
         commit("setIsAdmin", response.user);
@@ -71,6 +72,7 @@ const auth = {
       try {
         const response = await registerApi(payload);
         commit("setUser", response.user);
+        commit("setIsAdmin", response.user);
         return response;
       } catch (error) {
         console.error("Register error:", error);
@@ -103,16 +105,24 @@ const auth = {
       commit("setLoading", true);
       try {
         await logout();
-        localStorage.removeItem("access_token");
-        
-        commit("setAccessToken", null);
-        commit("setUser", null);
-        commit("setIsAdmin", false);
-        commit("setIsAuthenticated", false);
+        delete workApi.defaults.headers.common["Authorization"];
+        commit("resetState");
       } catch (error) {
         console.error("Logout error:", error);
       } finally {
         commit("setLoading", false);
+      }
+    },
+    async checkAuth({ commit, dispatch }: { commit: Commit; dispatch: any }) {
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        try {
+          await dispatch("fetchUser");
+        } catch (error) {
+          commit("resetState");
+        }
+      } else {
+        commit("resetState");
       }
     },
   },

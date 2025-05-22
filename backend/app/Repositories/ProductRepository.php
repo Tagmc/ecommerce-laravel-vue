@@ -5,7 +5,7 @@ namespace App\Repositories;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection as EloquentCollection; 
+use Illuminate\Support\Collection as EloquentCollection;
 
 class ProductRepository
 {
@@ -27,19 +27,6 @@ class ProductRepository
         return $this->model->create($data);
     }
 
-    /**
-     * Lấy tất cả sản phẩm với các bộ lọc, sắp xếp và phân trang.
-     *
-     * @param array $filters = [
-     * 'category_ids' => [], // Mảng các ID danh mục
-     * 'category_slug' => null, // Slug của một danh mục
-     * 'search' => null,
-     * 'sort_by' => 'created_at',
-     * 'sort_direction' => 'desc',
-     * ]
-     * @param int $perPage Số lượng item mỗi trang, null để lấy tất cả.
-     * @return LengthAwarePaginator|EloquentCollection
-     */
     public function getAll(array $filters = [], ?int $perPage = 15)
     {
         $query = $this->model->query()->with('categories');
@@ -47,6 +34,13 @@ class ProductRepository
             $query->whereHas('categories', function (Builder $q) use ($filters) {
                 $q->whereIn('categories.id', $filters['category_ids']);
             });
+        }
+        if (isset($filters['min_price'])) {
+            $query->where('price', '>=', $filters['min_price']);
+        }
+
+        if (isset($filters['max_price'])) {
+            $query->where('price', '<=', $filters['max_price']);
         }
         if (!empty($filters['category_slug'])) {
             $query->whereHas('categories', function (Builder $q) use ($filters) {
@@ -62,16 +56,16 @@ class ProductRepository
             $searchTerm = $filters['search'];
             $query->where(function (Builder $q) use ($searchTerm) {
                 $q->where('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
             });
         }
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortDirection = $filters['sort_direction'] ?? 'desc';
         if (in_array($sortBy, ['name', 'price', 'created_at', 'updated_at']) && in_array(strtolower($sortDirection), ['asc', 'desc'])) {
             if (in_array($sortBy, $this->model->getFillable()) || $sortBy === 'created_at' || $sortBy === 'updated_at') {
-                $query->orderBy($this->model->getTable().'.'.$sortBy, $sortDirection);
+                $query->orderBy($this->model->getTable() . '.' . $sortBy, $sortDirection);
             } else {
-                 $query->orderBy($sortBy, $sortDirection);
+                $query->orderBy($sortBy, $sortDirection);
             }
         }
 
